@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using minimal_api.Dominio.DTOs;
 using minimal_api.Dominio.Entidades;
 using minimal_api.Dominio.Enuns;
@@ -12,6 +13,12 @@ using minimal_api.Infraestrutura.Db;
 #region "Builder"
 var builder = WebApplication.CreateBuilder(args);
 
+var key = builder.Configuration.GetSection("Jwt").ToString();
+if(string.IsNullOrEmpty(key))
+{
+    throw new InvalidOperationException("Chave JWT não encontrada nas configurações.");
+}
+
 builder.Services.AddAuthentication(option =>
 {
     option.DefaultAuthenticateScheme = "Bearer";
@@ -21,9 +28,12 @@ builder.Services.AddAuthentication(option =>
     options.Authority = "https://localhost:7282/";
     options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
     {
-        ValidateAudience = false
+        ValidateLifetime = true,
+        IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(key)),
     };
 });
+
+builder.Services.AddAuthorization();
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -240,6 +250,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// habilitar autenticação e autorização token JWT
+app.UseAuthentication();
+app.UseAuthorization(); 
 
 //app.UseHttpsRedirection();
 app.Run();
